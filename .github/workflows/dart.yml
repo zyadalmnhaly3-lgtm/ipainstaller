@@ -14,29 +14,47 @@ jobs:
         with:
           channel: 'stable'
           architecture: x64
-      - run: flutter pub get
-      
 
-      - run: pod repo update
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      - name: Update CocoaPods
+        run: pod repo update
         working-directory: ios
 
-      - run: flutter build ios --release --no-codesign
+      - name: Build iOS Release
+        run: flutter build ios --release --no-codesign
 
-      - run: mkdir Payload
+      - name: Create Payload directory
+        run: mkdir -p Payload
         working-directory: build/ios/iphoneos
 
-      - run: mv Runner.app/ Payload
+      - name: Move app to Payload
+        run: mv Runner.app Payload/
         working-directory: build/ios/iphoneos
 
-      - name: Zip output
+      - name: Create IPA file
         run: zip -qq -r -9 FlutterIpaExport.ipa Payload
         working-directory: build/ios/iphoneos
 
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: build/ios/iphoneos/FlutterIpaExport.ipa
-          tag: v1.0
-          overwrite: true
-          body: "This is first release"
+          tag_name: v1.0
+          release_name: Release v1.0
+          body: "This is the first release - iOS IPA Build"
+          draft: false
+          prerelease: false
+
+      - name: Upload IPA to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: build/ios/iphoneos/FlutterIpaExport.ipa
+          asset_name: FlutterIpaExport.ipa
+          asset_content_type: application/zip
